@@ -6,7 +6,7 @@
 
  Bibliothéques nécessaires :
  - pubsubclient : https://github.com/knolleary/pubsubclient
- - ArduinoJson v5.13.3 : https://github.com/bblanchon/ArduinoJson
+ - ArduinoJson v6.20.0 : https://github.com/bblanchon/ArduinoJson
 Télécharger les bibliothèques, puis dans IDE : Faire Croquis / inclure une bibliothéque / ajouter la bibliothèque ZIP.
 Dans le gestionnaire de bibliothéque, charger le module ESP8266Wifi.
 
@@ -52,7 +52,7 @@ int idxDevice = 27;                     // Index du Device à actionner.
 WiFiClient espClient;
 PubSubClient client(espClient);
 unsigned long lastMsg = 0;
-#define MSG_BUFFER_SIZE	(50)
+#define MSG_BUFFER_SIZE  (50)
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
@@ -113,11 +113,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println(string);
 
     // Parse l'objet JSON nommé "root"
-    StaticJsonBuffer<512> jsonBuffer;
-    JsonObject &root = jsonBuffer.parseObject(string);
-    if (root.success()) {
-      int idx = root["idx"];
-      int nvalue = root["nvalue"];
+    StaticJsonDocument<512> doc;
+    //JsonObject &root = jsonBuffer.parseObject(string);  // plus besoin en Json v6
+    auto error = deserializeJson(doc, string);
+    if (!error) {
+      int idx = doc["idx"];
+      int nvalue = doc["nvalue"];
   
       // Activer la sortie du relais si 1a "nvalue" 1 est reçu.
       if (idx == idxDevice && nvalue == 1) {
@@ -156,16 +157,16 @@ void reconnect() {
       // Connexion effectuée, publication d'un message...
       String message = "Connexion MQTT de "+ nomModule + " réussi sous référence technique : " + clientId + ".";
       // String message = "Connexion MQTT de "+ nomModule + " réussi.";
-      StaticJsonBuffer<256> jsonBuffer;
+      StaticJsonDocument<256> doc;
       // Parse l'objet root
-      JsonObject &root = jsonBuffer.createObject();
+      // JsonObject &root = jsonBuffer.createObject();  // plus besoin avec Json v6
       // On renseigne les variables.
-      root["command"] = "addlogmessage";
-      root["message"] = message;
+      doc["command"] = "addlogmessage";
+      doc["message"] = message;
       
       // On sérialise la variable JSON
       String messageOut;
-      if (root.printTo(messageOut) == 0) {
+      if (serializeJsonPretty(doc ,messageOut) == 0) {
         Serial.println("Erreur lors de la création du message de connexion pour Domoticz");
       } else  {
         // Convertion du message en Char pour envoi dans les Log Domoticz.
@@ -185,4 +186,5 @@ void reconnect() {
     }
   }
 }
+
 
